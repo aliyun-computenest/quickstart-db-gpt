@@ -1,38 +1,52 @@
-version: '3.8'
-
+# To run current docker compose file, you should prepare the silliconflow api key in your environment.
+# SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY} docker compose up -d
 services:
-  oceanbase:
-    image: oceanbase/oceanbase-ce:vector
-    ports:
-      - 2881:2881
-    networks:
-      - dbgptnet
-  dbgpt:
-    image: eosphorosai/dbgpt-allinone
+  db:
+    image: mysql/mysql-server
     environment:
-      - DBGPT_WEBSERVER_PORT=12345
-      - VECTOR_STORE_TYPE=OceanBase
-      - OB_HOST=oceanbase
-      - OB_HOST=127.0.0.1
-      - OB_PORT=2881
-      - OB_USER=root@test
-      - OB_DATABASE=test
-      - LOCAL_DB_TYPE=sqlite
-      - LLM_MODEL=tongyi_proxyllm
-      - PROXYLLM_BACKEND=qwen-plus
-      - EMBEDDING_MODEL=text2vec
-      - TONGYI_PROXY_API_KEY=${TONGYI_PROXY_API_KEY}
-      - LANGUAGE=zh
-      # - OB_ENABLE_NORMALIZE_VECTOR=True
+      MYSQL_USER: 'user'
+      MYSQL_PASSWORD: 'password'
+      MYSQL_ROOT_PASSWORD: 'aa123456'
     ports:
       - 3306:3306
-      - 12345:12345
     volumes:
-      - /root:/sql_log
-      - /root:/app/models
+      - dbgpt-myql-db:/var/lib/mysql
+      - ./docker/examples/my.cnf:/etc/my.cnf
+      - ./docker/examples/sqls:/docker-entrypoint-initdb.d
+      - ./assets/schema/dbgpt.sql:/docker-entrypoint-initdb.d/dbgpt.sql
+    restart: unless-stopped
     networks:
       - dbgptnet
-
+  webserver:
+    image: eosphorosai/dbgpt-openai:latest
+    command: dbgpt start webserver --config /app/configs/dbgpt-proxy-siliconflow-mysql.toml
+    environment:
+      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY}
+      - MYSQL_PASSWORD=aa123456
+      - MYSQL_HOST=db
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=dbgpt
+      - MYSQL_USER=root
+    volumes:
+      - ./configs:/app/configs
+      - /data:/data
+      # May be you can mount your models to container
+      - /data/models:/app/models
+      - dbgpt-data:/app/pilot/data
+      - dbgpt-message:/app/pilot/message
+    depends_on:
+      - db
+    ports:
+      - 5670:5670/tcp
+    restart: unless-stopped
+    networks:
+      - dbgptnet
+    ipc: host
+volumes:
+  dbgpt-myql-db:
+  dbgpt-data:
+  dbgpt-message:
+  dbgpt-alembic-versions:
 networks:
   dbgptnet:
     driver: bridge
