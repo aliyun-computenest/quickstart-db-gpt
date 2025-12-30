@@ -3,7 +3,7 @@ Service:
   DeployMetadata:
     SupplierDeployMetadata:
       ArtifactRelation:
-        centos_7:
+        centos_7_9_x64_20G_alibase_20240403.vhd:
           ArtifactId: ${Artifact.Artifact_1.ArtifactId}
           ArtifactVersion: ${Artifact.Artifact_1.ArtifactVersion}
       SupplierTemplateConfigs:
@@ -72,7 +72,7 @@ ImageBuilder:
 
         cd DB-GPT
 
-        cat >> docker-compose.yml << EOF
+        cat >> ./.env << EOF
         SILICONFLOW_API_KEY=
         EOF
 
